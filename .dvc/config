@@ -1,4 +1,4 @@
 [core]
     remote = s3remote
 ['remote "s3remote"']
-    url = s3://kws-mlops-data-yourname/kws-data
+    url = s3://kws-mlops-data-rishikesh/kws-data
