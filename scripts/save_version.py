@@ -15,14 +15,17 @@ HEADERS = {
 }
 
 def create_snapshot():
-    # 1. Grab the short Git Commit hash from the GitHub Actions environment
+    # 1. Fix the Docker/Git "Dubious Ownership" Security Block
+    subprocess.run(["git", "config", "--global", "--add", "safe.directory", "/app"])
+
+    # 2. Grab the short Git Commit hash
     try:
         git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
     except Exception as e:
         print(f"⚠️ Could not read git hash, defaulting to 'manual-run'.")
         git_hash = "manual-run"
 
-    # 2. Get Project ID Safely
+    # 3. Get Project ID Safely
     print("🔍 Fetching Project ID from API Key...")
     proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
     if proj_res.status_code != 200:
@@ -37,18 +40,19 @@ def create_snapshot():
     project_id = proj_data['projects'][0]['id']
     print(f"✅ Successfully attached to Project ID: {project_id}")
 
-    # 3. Tell Edge Impulse to freeze the project state
+    # 4. Tell Edge Impulse to freeze the project state
     print(f"📸 Creating Edge Impulse Version snapshot for Git commit: {git_hash}")
     payload = {
         "description": f"Automated MLOps Pipeline Snapshot - Git Commit: {git_hash}"
     }
 
-    res = requests.post(f"https://studio.edgeimpulse.com/v1/api/{project_id}/versions", headers=HEADERS, json=payload)
+    # THE FIX: Changed /versions to /jobs/version
+    res = requests.post(f"https://studio.edgeimpulse.com/v1/api/{project_id}/jobs/version", headers=HEADERS, json=payload)
     
     if res.status_code == 200:
         data = res.json()
         if data.get("success"):
-            print("✅ Version successfully locked in Edge Impulse!")
+            print("✅ Version snapshot successfully triggered in Edge Impulse!")
         else:
             print(f"❌ Failed to save version (API Error): {data.get('error')}")
             exit(1)
