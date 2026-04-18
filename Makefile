@@ -12,4 +12,4 @@ shell:
 # 3. Run the entire pipeline end-to-end automatically
 run-pipeline:
 	docker run --rm --env-file .env --mount type=bind,source="$(CURDIR)",target=/app mlops-pipeline \
-	bash -c "python scripts/ingest_data.py && python scripts/train_model.py && python scripts/test_model.py && python scripts/deploy_board.py && python scripts/build_bin.py"
+	bash -c "python scripts/ingest_data.py && python scripts/train_model.py && python scripts/test_model.py && python scripts/save_version.py && python scripts/deploy_board.py && python scripts/build_bin.py"

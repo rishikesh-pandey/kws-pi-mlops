@@ -1,60 +1,46 @@
 import os
+import glob
 import requests
-import yaml
-from dotenv import load_dotenv
 
-load_dotenv()
-API_KEY = os.getenv("EI_API_KEY")
+API_KEY = os.environ.get("EI_API_KEY")
+HEADERS = {"x-api-key": API_KEY, "Accept": "application/json"}
 
-with open("config.yaml", "r") as file:
-    config = yaml.safe_load(file)
+def sync_data():
+    # 1. Get Project ID from your API Key
+    proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
+    project_id = proj_res.json()['projects'][0]['id']
 
-if not API_KEY:
-    print("❌ ERROR: EI_API_KEY not found. Check your .env file.")
-    exit(1)
+    # 2. Get files currently sitting in the Edge Impulse cloud
+    print("🔍 Fetching current Edge Impulse state...")
+    samples_res = requests.get(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data", headers=HEADERS)
+    
+    # Create a dictionary of {filename: sample_id}
+    ei_samples = {sample['filename']: sample['id'] for sample in samples_res.json()['samples']}
 
-DATA_DIR = config.get("pipeline", {}).get("data_directory", "data/raw_data")
-UPLOAD_CAT = config.get("pipeline", {}).get("upload_category", "split")
+    # 3. Get files currently sitting in your local DVC folder
+    local_files = []
+    local_paths = glob.glob("data/raw_data/**/*.wav", recursive=True)
+    for path in local_paths:
+        local_files.append(os.path.basename(path))
 
-URL = f"https://ingestion.edgeimpulse.com/api/{UPLOAD_CAT}/files"
+    # 4. Phase 1: The Purge (Delete files in EI that you removed from DVC)
+    for filename, sample_id in ei_samples.items():
+        if filename not in local_files:
+            print(f"🗑️ Deleting orphaned file from Edge Impulse: {filename}")
+            requests.delete(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data/{sample_id}", headers=HEADERS)
 
-def upload_file(filepath, label):
-    with open(filepath, 'rb') as file:
-        headers = {
-            "x-api-key": API_KEY,
-            "x-label": label,
-            "x-category": UPLOAD_CAT
-        }
-        files = {
-            'data': (os.path.basename(filepath), file, 'audio/wav')
-        }
-        
-        response = requests.post(URL, headers=headers, files=files)
-        
-        if response.status_code == 200:
-            print(f"✅ Uploaded: {os.path.basename(filepath)} | Label: '{label}' | Category: {UPLOAD_CAT}")
-        else:
-            print(f"❌ Failed to upload {filepath}: {response.text}")
+    # 5. Phase 2: The Upload (Only upload new files)
+    for local_path in local_paths:
+        filename = os.path.basename(local_path)
+        if filename not in ei_samples:
+            print(f"☁️ Uploading new file: {filename}")
+            
+            # Read the audio file and upload it
+            with open(local_path, 'rb') as file_data:
+                # Edge Impulse determines the label from the folder name
+                label = os.path.basename(os.path.dirname(local_path))
+                upload_headers = {"x-api-key": API_KEY, "x-file-name": filename, "x-label": label}
+                requests.post("https://ingestion.edgeimpulse.com/api/training/data", headers=upload_headers, data=file_data)
 
 if __name__ == "__main__":
-    print(f"🚀 Starting Data Ingestion Pipeline (Category: {UPLOAD_CAT})...")
-    
-    if not os.path.exists(DATA_DIR) or not os.listdir(DATA_DIR):
-        print(f"⚠️ No directory found at {DATA_DIR}. Please check your config.")
-        exit(0)
-
-    # NEW LOGIC: Iterate through the subdirectories
-    for folder_name in os.listdir(DATA_DIR):
-        folder_path = os.path.join(DATA_DIR, folder_name)
-        
-        # Verify it is actually a folder (like 'yes' or 'no')
-        if os.path.isdir(folder_path):
-            label = folder_name # The folder name is the exact label!
-            
-            # Loop through all the .wav files inside that specific folder
-            for filename in os.listdir(folder_path):
-                if filename.endswith(".wav"):
-                    filepath = os.path.join(folder_path, filename)
-                    upload_file(filepath, label)
-                    
-    print("🏁 Ingestion Complete.")
+    sync_data()

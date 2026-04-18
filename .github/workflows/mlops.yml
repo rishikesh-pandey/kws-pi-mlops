@@ -38,7 +38,7 @@ jobs:
           EI_API_KEY: ${{ secrets.EI_API_KEY }}
         run: |
           # Run the full pipeline inside the Docker container
-          docker run --rm -e EI_API_KEY="${EI_API_KEY}" --mount type=bind,source="$(pwd)",target=/app mlops-pipeline bash -c "python scripts/ingest_data.py && python scripts/train_model.py && python scripts/test_model.py && python scripts/deploy_board.py && python scripts/build_bin.py"
+          docker run --rm -e EI_API_KEY="${EI_API_KEY}" --mount type=bind,source="$(pwd)",target=/app mlops-pipeline bash -c "python scripts/ingest_data.py && python scripts/train_model.py && python scripts/test_model.py && python scripts/save_version.py && python scripts/deploy_board.py && python scripts/build_bin.py"
 
       - name: 🏷️ Publish Firmware to GitHub Releases
         uses: softprops/action-gh-release@v1
