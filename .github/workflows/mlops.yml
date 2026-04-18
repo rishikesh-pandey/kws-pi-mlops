@@ -1,0 +1,50 @@
+name: MLOps CI/CD Pipeline
+
+# Trigger this workflow automatically when you push to the main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: ⚙️ Setup Python & DVC
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install dvc[s3]
+
+      - name: 🔐 Authenticate with AWS S3
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: 📦 Pull Dataset from AWS S3
+        run: dvc pull
+
+      - name: 🐳 Build Docker Compiler Factory
+        run: docker build -t mlops-pipeline .
+
+      - name: 🚀 Execute MLOps Pipeline & Compile Firmware
+        env:
+          EI_API_KEY: ${{ secrets.EI_API_KEY }}
+        run: |
+          # Run the full pipeline inside the Docker container
+          docker run --rm -e EI_API_KEY="${EI_API_KEY}" --mount type=bind,source="$(pwd)",target=/app mlops-pipeline bash -c "python scripts/ingest_data.py && python scripts/train_model.py && python scripts/test_model.py && python scripts/deploy_board.py && python scripts/build_bin.py"
+
+      - name: 🏷️ Publish Firmware to GitHub Releases
+        uses: softprops/action-gh-release@v1
+        with:
+          files: deploy/build/app.bin
+          tag_name: v1.${{ github.run_number }}
+          name: Firmware Update v1.${{ github.run_number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

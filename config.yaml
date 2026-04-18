@@ -1,0 +1,60 @@
+# ==========================================
+# MASTER MLOPS CONFIGURATION
+# ==========================================
+
+pipeline:
+  data_directory: "data/raw_data"
+  output_directory: "deploy"
+  # Set to 'split' to let EI auto-split, or 'training' / 'testing' to force category
+  upload_category: "split" 
+
+# ==========================================
+# 1. DSP (FEATURE EXTRACTION) PARAMS
+# ==========================================
+dsp:
+  override_ui: false
+  # Audio (MFCC/Spectrogram) Parameters
+  frame_length_ms: 0.02
+  frame_stride_ms: 0.02
+  num_filters: 32
+  fft_length: 256
+  low_frequency: 0
+  high_frequency: 0 # 0 dynamically maps to Nyquist frequency
+
+# ==========================================
+# 2. NEURAL NETWORK PARAMS
+# ==========================================
+training:
+  override_ui: flase
+  # Leave a parameter commented out (or delete it) to use the Web UI's default for that specific value
+  learning_rate: 0.005
+  epochs: 100
+  batch_size: 32
+  # validation_split: 0.20
+  
+  # Advanced Architecture Optimizations
+  data_augmentation:
+    enabled: false
+    noise_injection_ratio: 0.1
+    masking: false
+
+# ==========================================
+# 3. DEPLOYMENT & COMPILER PARAMS
+# ==========================================
+deployment:
+  override_ui: true
+  
+  # Target Device Options: 
+  # "raspberry-pi-rp2040" (UF2 Firmware)
+  # "zip" (Raw C++ Library for custom memory allocation)
+  # "arduino" (Arduino Library)
+  target_device: "zip"
+  
+  # Quantization Level: "int8" (Microcontrollers) or "float32" (Linux/Raspberry Pi 4)
+  model_type: "int8"
+  
+  # Inference Engine: "tflite" (Standard) or "tensaiflow"
+  inference_engine: "tflite"
+  
+  # Edge Impulse EON Compiler (Dramatically reduces RAM/ROM usage by skipping the TFLite interpreter)
+  enable_eon_compiler: true

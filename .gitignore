@@ -1,0 +1,10 @@
+.env
+__pycache__/
+node_modules/
+pi_build/
+deploy/
+data/raw_data/
+*.zip
+*.uf2
+*.elf
+*.bin
