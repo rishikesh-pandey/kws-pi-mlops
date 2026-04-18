@@ -5,12 +5,25 @@ import requests
 API_KEY = os.environ.get("EI_API_KEY")
 HEADERS = {"x-api-key": API_KEY, "Accept": "application/json"}
 
-def sync_data():
+def clear_project_data(project_id):
+    print("🧹 Clearing all existing data from Edge Impulse...")
+    # Loop through both buckets and delete every sample
+    for category in ['training', 'testing']:
+        res = requests.get(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data?category={category}", headers=HEADERS)
+        data = res.json()
+        
+        if data.get('success') and 'samples' in data:
+            for sample in data['samples']:
+                sample_id = sample['id']
+                requests.delete(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data/{sample_id}", headers=HEADERS)
+    print("✅ Project data cleared.")
+
+def upload_all_data():
     if not API_KEY:
         print("❌ ERROR: EI_API_KEY is missing! Check your GitHub Secrets.")
         exit(1)
 
-    # 1. Get Project ID safely
+    # 1. Get Project ID
     proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
     proj_data = proj_res.json()
     if not proj_data.get('success'):
@@ -19,65 +32,38 @@ def sync_data():
         
     project_id = proj_data['projects'][0]['id']
 
-    # 2. Get files currently sitting in Edge Impulse safely
-    print("🔍 Fetching current Edge Impulse state...")
-    ei_samples = {}
-    
-    # We must explicitly query the API by category, otherwise it returns an error!
-    for category in ['training', 'testing']:
-        res = requests.get(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data?category={category}", headers=HEADERS)
-        data = res.json()
-        
-        # Safely extract samples only if the request was successful
-        if data.get('success') and 'samples' in data:
-            for sample in data['samples']:
-                ei_samples[sample['filename']] = sample['id']
-        else:
-            print(f"⚠️ API Warning for {category}: {data.get('error')}")
+    # 2. Wipe everything clean
+    clear_project_data(project_id)
 
-    # 3. Get files sitting in your local DVC folder
-    local_files = []
+    # 3. Upload the exact dataset from scratch
+    print("🚀 Uploading fresh dataset...")
     local_paths = glob.glob("data/raw_data/**/*.wav", recursive=True)
-    for path in local_paths:
-        local_files.append(os.path.basename(path))
-
-    # 4. Phase 1: The Purge (Delete files in the cloud that you removed locally)
-    for filename, sample_id in ei_samples.items():
-        if filename not in local_files:
-            print(f"🗑️ Deleting orphaned file from cloud: {filename}")
-            requests.delete(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data/{sample_id}", headers=HEADERS)
-
-    # 5. Phase 2: The Upload (Only upload new files)
+    
     for local_path in local_paths:
         filename = os.path.basename(local_path)
-        if filename not in ei_samples:
-            print(f"☁️ Uploading new file: {filename}")
+        label = os.path.basename(os.path.dirname(local_path))
+        
+        with open(local_path, 'rb') as file_data:
+            # We explicitly pass the x-category: split header so the API handles the 80/20 routing
+            upload_headers = {
+                "x-api-key": API_KEY, 
+                "x-label": label,
+                "x-category": "split"
+            }
             
-            with open(local_path, 'rb') as file_data:
-                label = os.path.basename(os.path.dirname(local_path))
-                
-                # We do NOT set Content-Type manually here. 
-                # Python 'requests' will automatically set it to multipart/form-data!
-                upload_headers = {
-                    "x-api-key": API_KEY, 
-                    "x-label": label,
-                    "x-disallow-duplicates": "1",
-                    "x-category": "split"
-                }
-                
-                # Notice the new URL ending in /files, and we pass the file using the 'files=' parameter
-                res = requests.post(
-                    "https://ingestion.edgeimpulse.com/api/training/files", 
-                    headers=upload_headers, 
-                    files={"data": (filename, file_data, "audio/wav")}
-                )
-                
-                if res.status_code != 200:
-                    print(f"⚠️ Failed to upload {filename}: {res.text}")
-                    
-    print("✅ Ingestion & Sync Complete!")
-                    
-    print("✅ Ingestion & Sync Complete!") 
+            # Using the modern multipart /files endpoint
+            res = requests.post(
+                "https://ingestion.edgeimpulse.com/api/training/files", 
+                headers=upload_headers, 
+                files={"data": (filename, file_data, "audio/wav")}
+            )
+            
+            if res.status_code == 200:
+                print(f"✅ Uploaded: {filename} | Label: '{label}' | Category: split")
+            else:
+                print(f"⚠️ Failed to upload {filename}: {res.text}")
+
+    print("🎉 Ingestion Complete!")
 
 if __name__ == "__main__":
-    sync_data()
+    upload_all_data()
