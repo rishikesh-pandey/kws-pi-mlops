@@ -22,12 +22,12 @@ os.makedirs(BUILD_DIR, exist_ok=True)
 print("⚙️ Configuring CMake (Linking Pico SDK & Edge Impulse)...")
 cmake_cmd = [
     "cmake", 
-    "..", 
+    "../..",  # <--- THE FIX: Go up TWO folders to hit the repository root!
     "-DPICO_BOARD=pico", 
     "-DCMAKE_BUILD_TYPE=Release"
 ]
 
-# Removed capture_output=True so logs stream live to the GitHub Actions console
+# Run CMake (Logs will stream live)
 result = subprocess.run(cmake_cmd, cwd=BUILD_DIR)
 
 if result.returncode != 0:
