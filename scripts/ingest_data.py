@@ -55,17 +55,26 @@ def sync_data():
             
             with open(local_path, 'rb') as file_data:
                 label = os.path.basename(os.path.dirname(local_path))
-                # x-disallow-duplicates prevents the API from ever duplicating a file hash
+                
+                # We do NOT set Content-Type manually here. 
+                # Python 'requests' will automatically set it to multipart/form-data!
                 upload_headers = {
                     "x-api-key": API_KEY, 
-                    "x-file-name": filename, 
                     "x-label": label,
-                    "x-disallow-duplicates": "1",
-                    "Content-Type": "audio/wav"
+                    "x-disallow-duplicates": "1"
                 }
-                res = requests.post("https://ingestion.edgeimpulse.com/api/training/data", headers=upload_headers, data=file_data)
+                
+                # Notice the new URL ending in /files, and we pass the file using the 'files=' parameter
+                res = requests.post(
+                    "https://ingestion.edgeimpulse.com/api/training/files", 
+                    headers=upload_headers, 
+                    files={"data": (filename, file_data, "audio/wav")}
+                )
+                
                 if res.status_code != 200:
                     print(f"⚠️ Failed to upload {filename}: {res.text}")
+                    
+    print("✅ Ingestion & Sync Complete!")
                     
     print("✅ Ingestion & Sync Complete!") 
 
