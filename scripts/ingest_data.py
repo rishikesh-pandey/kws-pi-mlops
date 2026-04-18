@@ -6,27 +6,45 @@ API_KEY = os.environ.get("EI_API_KEY")
 HEADERS = {"x-api-key": API_KEY, "Accept": "application/json"}
 
 def sync_data():
-    # 1. Get Project ID from your API Key
+    if not API_KEY:
+        print("❌ ERROR: EI_API_KEY is missing! Check your GitHub Secrets.")
+        exit(1)
+
+    # 1. Get Project ID safely
     proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
-    project_id = proj_res.json()['projects'][0]['id']
+    proj_data = proj_res.json()
+    if not proj_data.get('success'):
+        print(f"❌ Authentication Failed: {proj_data.get('error')}")
+        exit(1)
+        
+    project_id = proj_data['projects'][0]['id']
 
-    # 2. Get files currently sitting in the Edge Impulse cloud
+    # 2. Get files currently sitting in Edge Impulse safely
     print("🔍 Fetching current Edge Impulse state...")
-    samples_res = requests.get(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data", headers=HEADERS)
+    ei_samples = {}
     
-    # Create a dictionary of {filename: sample_id}
-    ei_samples = {sample['filename']: sample['id'] for sample in samples_res.json()['samples']}
+    # We must explicitly query the API by category, otherwise it returns an error!
+    for category in ['training', 'testing']:
+        res = requests.get(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data?category={category}", headers=HEADERS)
+        data = res.json()
+        
+        # Safely extract samples only if the request was successful
+        if data.get('success') and 'samples' in data:
+            for sample in data['samples']:
+                ei_samples[sample['filename']] = sample['id']
+        else:
+            print(f"⚠️ API Warning for {category}: {data.get('error')}")
 
-    # 3. Get files currently sitting in your local DVC folder
+    # 3. Get files sitting in your local DVC folder
     local_files = []
     local_paths = glob.glob("data/raw_data/**/*.wav", recursive=True)
     for path in local_paths:
         local_files.append(os.path.basename(path))
 
-    # 4. Phase 1: The Purge (Delete files in EI that you removed from DVC)
+    # 4. Phase 1: The Purge (Delete files in the cloud that you removed locally)
     for filename, sample_id in ei_samples.items():
         if filename not in local_files:
-            print(f"🗑️ Deleting orphaned file from Edge Impulse: {filename}")
+            print(f"🗑️ Deleting orphaned file from cloud: {filename}")
             requests.delete(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data/{sample_id}", headers=HEADERS)
 
     # 5. Phase 2: The Upload (Only upload new files)
@@ -35,12 +53,20 @@ def sync_data():
         if filename not in ei_samples:
             print(f"☁️ Uploading new file: {filename}")
             
-            # Read the audio file and upload it
             with open(local_path, 'rb') as file_data:
-                # Edge Impulse determines the label from the folder name
                 label = os.path.basename(os.path.dirname(local_path))
-                upload_headers = {"x-api-key": API_KEY, "x-file-name": filename, "x-label": label}
-                requests.post("https://ingestion.edgeimpulse.com/api/training/data", headers=upload_headers, data=file_data)
+                # x-disallow-duplicates prevents the API from ever duplicating a file hash
+                upload_headers = {
+                    "x-api-key": API_KEY, 
+                    "x-file-name": filename, 
+                    "x-label": label,
+                    "x-disallow-duplicates": "1"
+                }
+                res = requests.post("https://ingestion.edgeimpulse.com/api/training/data", headers=upload_headers, data=file_data)
+                if res.status_code != 200:
+                    print(f"⚠️ Failed to upload {filename}: {res.text}")
+                    
+    print("✅ Ingestion & Sync Complete!")
 
 if __name__ == "__main__":
     sync_data()
