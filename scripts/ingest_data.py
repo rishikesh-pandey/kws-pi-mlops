@@ -61,7 +61,8 @@ def sync_data():
                 upload_headers = {
                     "x-api-key": API_KEY, 
                     "x-label": label,
-                    "x-disallow-duplicates": "1"
+                    "x-disallow-duplicates": "1",
+                    "x-category": "split"
                 }
                 
                 # Notice the new URL ending in /files, and we pass the file using the 'files=' parameter
