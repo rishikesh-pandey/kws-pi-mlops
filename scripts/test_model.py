@@ -6,13 +6,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 API_KEY = os.environ.get("EI_API_KEY")
-PROJECT_ID = os.environ.get("PROJECT_ID")
 
 with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
-if not API_KEY or not PROJECT_ID:
-    print("❌ ERROR: Missing API keys in .env")
+if not API_KEY:
+    print("❌ ERROR: EI_API_KEY environment variable is missing!")
     exit(1)
 
 HEADERS = {
@@ -21,7 +20,22 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
+# --- THE FIX: DYNAMICALLY FETCH THE PROJECT ID ---
+print("🔍 Fetching Project ID from API Key...")
+proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
+if proj_res.status_code != 200:
+    print(f"❌ Failed to fetch projects. RAW ERROR: {proj_res.text}")
+    exit(1)
+
+proj_data = proj_res.json()
+if not proj_data.get('success') or not proj_data.get('projects'):
+    print(f"❌ Authentication Failed or no projects found: {proj_data}")
+    exit(1)
+    
+PROJECT_ID = proj_data['projects'][0]['id']
 BASE_URL = f"https://studio.edgeimpulse.com/v1/api/{PROJECT_ID}"
+print(f"✅ Successfully attached to Project ID: {PROJECT_ID}")
+
 
 def start_testing():
     print("🚀 Triggering Model Testing Job (Classify All Unseen Data)...")

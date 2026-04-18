@@ -6,12 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 API_KEY = os.environ.get("EI_API_KEY")
-PROJECT_ID = os.environ.get("PROJECT_ID")
 
 with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
-
-
 
 if not API_KEY:
     print("❌ ERROR: EI_API_KEY environment variable is missing!")
@@ -23,18 +20,40 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
+# --- THE FIX: DYNAMICALLY FETCH THE PROJECT ID ---
+print("🔍 Fetching Project ID from API Key...")
+proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
+if proj_res.status_code != 200:
+    print(f"❌ Failed to fetch projects. RAW ERROR: {proj_res.text}")
+    exit(1)
+
+proj_data = proj_res.json()
+if not proj_data.get('success') or not proj_data.get('projects'):
+    print(f"❌ Authentication Failed or no projects found: {proj_data}")
+    exit(1)
+    
+PROJECT_ID = proj_data['projects'][0]['id']
 BASE_URL = f"https://studio.edgeimpulse.com/v1/api/{PROJECT_ID}"
+print(f"✅ Successfully attached to Project ID: {PROJECT_ID}")
+
 
 def get_blocks():
     """Fetches the internal IDs of the DSP and Neural Network blocks."""
     res = requests.get(f"{BASE_URL}/impulse", headers=HEADERS)
     if res.status_code != 200:
         print("❌ Failed to fetch project impulse architecture.")
+        print(f"🚨 RAW API ERROR: {res.text}")
         exit(1)
     
-    data = res.json()["impulse"]
-    dsp_id = data["dspBlocks"][0]["id"] if data.get("dspBlocks") else None
-    learn_id = data["learnBlocks"][0]["id"] if data.get("learnBlocks") else None
+    data = res.json()
+    if not data.get("success"):
+        print(f"❌ API Error: {data.get('error')}")
+        print(f"🚨 RAW API ERROR: {res.text}")
+        exit(1)
+
+    impulse_data = data.get("impulse", {})
+    dsp_id = impulse_data["dspBlocks"][0]["id"] if impulse_data.get("dspBlocks") else None
+    learn_id = impulse_data["learnBlocks"][0]["id"] if impulse_data.get("learnBlocks") else None
     return dsp_id, learn_id
 
 def start_training():
@@ -73,7 +92,7 @@ def start_training():
         res = requests.post(f"{BASE_URL}/jobs/retrain", headers=HEADERS)
     
     if res.status_code != 200:
-        print(f"❌ Failed to start pipeline: {res.text}")
+        print(f"❌ Failed to start pipeline. RAW API ERROR: {res.text}")
         exit(1)
         
     data = res.json()
@@ -88,7 +107,6 @@ def start_training():
 def wait_for_job(job_id, max_retries=15, sleep_time=20):
     """Dynamically polls the API to check if the job is finished."""
     print(f"⏳ Waiting for cloud job to finish. Polling every {sleep_time} seconds...")
-    
     status_url = f"{BASE_URL}/jobs/{job_id}/status"
     
     for attempt in range(max_retries):
@@ -119,7 +137,6 @@ def wait_for_job(job_id, max_retries=15, sleep_time=20):
 def print_metrics(learn_id):
     print("\n📊 Fetching Model Performance Metrics...")
     
-    # BUGFIX: The correct endpoint is the Keras metadata route
     url = f"{BASE_URL}/training/keras/{learn_id}/metadata"
     res = requests.get(url, headers=HEADERS)
     
@@ -135,10 +152,8 @@ def print_metrics(learn_id):
         print(data)
         return
         
-    # Grab the metrics for the int8 quantized model (or fallback to whatever is first)
     target_metrics = next((m for m in metrics_list if m.get("type") == "int8"), metrics_list[0])
     
-    # Safely parse Accuracy (EI sometimes returns a float, sometimes a nested dict)
     acc_data = target_metrics.get("accuracy", 0)
     acc = acc_data.get("raw", 0) * 100 if isinstance(acc_data, dict) else float(acc_data) * 100
     loss = target_metrics.get("loss", 0)
@@ -146,22 +161,16 @@ def print_metrics(learn_id):
     print(f"🎯 Accuracy (Validation): {acc:.2f}%")
     print(f"📉 Loss:     {loss:.4f}")
 
-    # Print the Confusion Matrix
     cm = target_metrics.get("confusionMatrix", [])
     if cm:
         print("\n🧮 Confusion Matrix:")
         for row in cm:
-            # Format each row to look like a clean, spaced grid
             print(" | ".join([f"{str(val):>5}" for val in row]))
     print("\n")
 
 if __name__ == "__main__":
     dsp_id, learn_id = get_blocks()
-    
     job_id = start_training()
     wait_for_job(job_id, max_retries=15, sleep_time=20)
-    
-    # We ONLY fetch metrics for the Neural Network, not the DSP block
     print_metrics(learn_id)
-    
     print("🏁 Training command executed successfully.")
