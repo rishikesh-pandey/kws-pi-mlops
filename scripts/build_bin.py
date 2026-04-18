@@ -1,21 +1,19 @@
 import os
 import subprocess
-import shutil
+import multiprocessing
 
 # 1. Define paths
-ZIP_PATH = "deploy/firmware.zip"
 BUILD_DIR = "deploy/build"
 LIBRARY_DIR = "deploy/board_library"
 
 print("🚀 Starting Firmware Compilation for RP2040...")
 
-# 2. Extract the Edge Impulse ZIP
-if not os.path.exists(ZIP_PATH):
-    print("❌ ERROR: firmware.zip not found! Run deploy_board.py first.")
+# 2. Verify the SDK was extracted by deploy_board.py
+if not os.path.exists(LIBRARY_DIR):
+    print(f"❌ ERROR: SDK not found at {LIBRARY_DIR}! Run deploy_board.py first.")
     exit(1)
 
-shutil.unpack_archive(ZIP_PATH, LIBRARY_DIR)
-print("✅ Edge Impulse SDK extracted.")
+print("✅ Edge Impulse SDK verified.")
 
 # 3. Create the CMake build directory
 os.makedirs(BUILD_DIR, exist_ok=True)
@@ -28,22 +26,25 @@ cmake_cmd = [
     "-DPICO_BOARD=pico", 
     "-DCMAKE_BUILD_TYPE=Release"
 ]
-result = subprocess.run(cmake_cmd, cwd=BUILD_DIR, capture_output=True, text=True)
+
+# Removed capture_output=True so logs stream live to the GitHub Actions console
+result = subprocess.run(cmake_cmd, cwd=BUILD_DIR)
 
 if result.returncode != 0:
     print("❌ CMake Configuration Failed!")
-    print(result.stderr)
     exit(1)
 
 # 5. Run Make to compile the .bin file
-print("🔨 Compiling C++ into ARM binary. This will take a few minutes...")
-make_cmd = ["make", "-j4"]
-result = subprocess.run(make_cmd, cwd=BUILD_DIR, capture_output=True, text=True)
+cores = multiprocessing.cpu_count()
+print(f"🔨 Compiling C++ into ARM binary using {cores} CPU cores...")
+print("⏳ This step takes a few minutes. Watch the live logs below:")
+
+make_cmd = ["make", f"-j{cores}"]
+result = subprocess.run(make_cmd, cwd=BUILD_DIR)
 
 if result.returncode != 0:
     print("❌ Compilation Failed!")
-    print(result.stderr)
     exit(1)
 
 print("✅ SUCCESS! Firmware compiled.")
-print("📦 You can find your files in: deploy/build/")
+print("📦 You can find your binary files in: deploy/build/")
