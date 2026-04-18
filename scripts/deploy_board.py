@@ -5,8 +5,8 @@ import zipfile
 from dotenv import load_dotenv
 
 load_dotenv()
-API_KEY = os.getenv("EI_API_KEY")
-PROJECT_ID = os.getenv("PROJECT_ID")
+API_KEY = os.environ.get("EI_API_KEY")
+PROJECT_ID = os.environ.get("PROJECT_ID")
 
 if not API_KEY or not PROJECT_ID:
     print("❌ ERROR: Missing API keys in .env")

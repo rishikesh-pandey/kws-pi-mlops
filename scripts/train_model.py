@@ -5,14 +5,16 @@ import yaml
 from dotenv import load_dotenv
 
 load_dotenv()
-API_KEY = os.getenv("EI_API_KEY")
-PROJECT_ID = os.getenv("PROJECT_ID")
+API_KEY = os.environ.get("EI_API_KEY")
+PROJECT_ID = os.environ.get("PROJECT_ID")
 
 with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
-if not API_KEY or not PROJECT_ID:
-    print("❌ ERROR: Missing API keys in .env")
+
+
+if not API_KEY:
+    print("❌ ERROR: EI_API_KEY environment variable is missing!")
     exit(1)
 
 HEADERS = {

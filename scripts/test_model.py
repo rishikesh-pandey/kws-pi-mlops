@@ -5,8 +5,8 @@ import yaml
 from dotenv import load_dotenv
 
 load_dotenv()
-API_KEY = os.getenv("EI_API_KEY")
-PROJECT_ID = os.getenv("PROJECT_ID")
+API_KEY = os.environ.get("EI_API_KEY")
+PROJECT_ID = os.environ.get("PROJECT_ID")
 
 with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
