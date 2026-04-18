@@ -67,7 +67,7 @@ def sync_data():
                 if res.status_code != 200:
                     print(f"⚠️ Failed to upload {filename}: {res.text}")
                     
-    print("✅ Ingestion & Sync Complete!")
+    print("✅ Ingestion & Sync Complete!") 
 
 if __name__ == "__main__":
     sync_data()
