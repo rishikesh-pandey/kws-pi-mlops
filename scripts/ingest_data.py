@@ -7,7 +7,6 @@ HEADERS = {"x-api-key": API_KEY, "Accept": "application/json"}
 
 def clear_project_data(project_id):
     print("🧹 Clearing all existing data from Edge Impulse...")
-    # Loop through both buckets and delete every sample
     for category in ['training', 'testing']:
         res = requests.get(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data?category={category}", headers=HEADERS)
         data = res.json()
@@ -44,16 +43,14 @@ def upload_all_data():
         label = os.path.basename(os.path.dirname(local_path))
         
         with open(local_path, 'rb') as file_data:
-            # We explicitly pass the x-category: split header so the API handles the 80/20 routing
             upload_headers = {
                 "x-api-key": API_KEY, 
-                "x-label": label,
-                "x-category": "split"
+                "x-label": label
             }
             
-            # Using the modern multipart /files endpoint
+            # THE FIX: Changed /training/files to /split/files
             res = requests.post(
-                "https://ingestion.edgeimpulse.com/api/training/files", 
+                "https://ingestion.edgeimpulse.com/api/split/files", 
                 headers=upload_headers, 
                 files={"data": (filename, file_data, "audio/wav")}
             )
