@@ -61,6 +61,7 @@ def sync_data():
                     "x-file-name": filename, 
                     "x-label": label,
                     "x-disallow-duplicates": "1"
+                    "Content-Type": "audio/wav"
                 }
                 res = requests.post("https://ingestion.edgeimpulse.com/api/training/data", headers=upload_headers, data=file_data)
                 if res.status_code != 200:
