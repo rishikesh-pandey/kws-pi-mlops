@@ -10,6 +10,10 @@ jobs:
   build-and-release:
     runs-on: ubuntu-latest
 
+    # Add this permissions block right below your job definition
+    permissions:
+      contents: write
+
     steps:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v3
