@@ -5,14 +5,13 @@ include($ENV{PICO_SDK_PATH}/pico_sdk_init.cmake)
 project(kws_firmware C CXX ASM)
 pico_sdk_init()
 
-# 1. Pull in the Edge Impulse Neural Network library from the deploy folder
-add_subdirectory(deploy/board_library)
-
-# 2. Define your main executable as 'app'
+# 1. Define your main executable FIRST (Edge Impulse demands this exists before loading)
 add_executable(app main.cpp)
 
+# 2. NOW pull in the Edge Impulse Neural Network library from the deploy folder
+add_subdirectory(deploy/board_library)
+
 # 3. Link the Pico hardware AND the Edge Impulse SDK to your main app!
-# THE FIX: Removed the hyphen! The target is named 'edgeimpulse'
 target_link_libraries(app pico_stdlib edgeimpulse)
 
 # 4. Route standard output (printf) to the USB port instead of UART pins
