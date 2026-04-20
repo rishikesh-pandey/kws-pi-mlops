@@ -104,7 +104,7 @@ def start_training():
     print(f"✅ Cloud Pipeline started! (Job ID: {job_id})")
     return job_id
 
-def wait_for_job(job_id, max_retries=15, sleep_time=20):
+def wait_for_job(job_id, max_retries=30, sleep_time=20):
     """Dynamically polls the API to check if the job is finished."""
     print(f"⏳ Waiting for cloud job to finish. Polling every {sleep_time} seconds...")
     status_url = f"{BASE_URL}/jobs/{job_id}/status"

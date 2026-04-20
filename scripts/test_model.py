@@ -54,7 +54,7 @@ def start_testing():
     print(f"✅ Cloud Testing Job started! (Job ID: {job_id})")
     return job_id
 
-def wait_for_job(job_id, max_retries=15, sleep_time=20):
+def wait_for_job(job_id, max_retries=25, sleep_time=20):
     print(f"⏳ Waiting for testing job to finish. Polling every {sleep_time} seconds...")
     status_url = f"{BASE_URL}/jobs/{job_id}/status"
     
