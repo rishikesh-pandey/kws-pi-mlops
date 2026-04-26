@@ -25,7 +25,7 @@ def create_snapshot():
         git_hash = "manual-run"
 
     # 3. Get Project ID Safely
-    print("🔍 Fetching Project ID from API Key...")
+    print("Fetching Project ID from API Key...")
     proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
     if proj_res.status_code != 200:
         print(f"Failed to fetch projects. RAW ERROR: {proj_res.text}")

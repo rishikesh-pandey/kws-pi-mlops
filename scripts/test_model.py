@@ -21,7 +21,7 @@ HEADERS = {
 }
 
 # DYNAMICALLY FETCH THE PROJECT ID FROM THE API KEY
-print("🔍 Fetching Project ID from API Key...")
+print("Fetching Project ID from API Key...")
 proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
 if proj_res.status_code != 200:
     print(f"Failed to fetch projects. RAW ERROR: {proj_res.text}")
@@ -153,9 +153,9 @@ def print_final_report():
                 row_str = " | ".join([f"{cm[t_label][p_label]:>8}" for p_label in labels])
                 print(f"{t_label:>10} | {row_str}")
         else:
-            print("⚠️ Testing list is empty. No test data available.")
+            print("Testing list is empty. No test data available.")
     else:
-        print(f"⚠️ Could not fetch test data metrics: {test_res.status_code}")
+        print(f"Could not fetch test data metrics: {test_res.status_code}")
 
     print("-" * 50)
 
@@ -176,7 +176,7 @@ def print_final_report():
             profile = target_metrics.get("profile", {})
             eon_profile = profile.get("eon", profile.get("tflite", {}))
             
-            print(f"📉 Validation Accuracy (During Training): {val_acc:.2f}%")
+            print(f"Validation Accuracy (During Training): {val_acc:.2f}%")
             
             latency = eon_profile.get('timePerInferenceMs', 0)
             ram = eon_profile.get('ram', 0)
@@ -189,13 +189,13 @@ def print_final_report():
                 print(f"Peak RAM Used:           {ram} bytes")
                 print(f"Flash / ROM Used:        {rom} bytes")
                 if latency > 20:
-                    print(f"⚠️ Latency exceeds threshold of 20 ms!")
+                    print(f"Latency exceeds threshold of 20 ms!")
                     exit(1)
                 if ram > 20:
-                    print(f"⚠️ RAM usage exceeds threshold of 20 bytes!")
+                    print(f"RAM usage exceeds threshold of 20 bytes!")
                     exit(1)
                 if rom > 120:
-                    print(f"⚠️ ROM usage exceeds threshold of 120 bytes!")
+                    print(f"ROM usage exceeds threshold of 120 bytes!")
                     exit(1)
                 else:
                     print("Hardware metrics are within acceptable thresholds.")

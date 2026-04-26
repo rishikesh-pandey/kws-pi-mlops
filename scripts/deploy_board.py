@@ -17,7 +17,7 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# --- THE FIX: DYNAMICALLY FETCH THE PROJECT ID ---
+# THE FIX: DYNAMICALLY FETCH THE PROJECT ID 
 print("🔍 Fetching Project ID from API Key...")
 proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
 if proj_res.status_code != 200:
@@ -57,7 +57,7 @@ def build_and_download():
     print(f"Cloud Compiler Job started! (Job ID: {job_id})")
     
     # 2. Smart Polling Loop
-    print("⏳ Waiting for the cloud compiler to finish. This usually takes 1-2 minutes...")
+    print("Waiting for the cloud compiler to finish. This usually takes 1-2 minutes...")
     
     download_headers = {"x-api-key": API_KEY, "Accept": "application/zip"}
     download_url = f"{BASE_URL}/deployment/download?type={deploy_type}&modelType=int8"
