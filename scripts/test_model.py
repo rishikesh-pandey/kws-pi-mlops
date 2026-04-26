@@ -11,7 +11,7 @@ with open("config.yaml", "r") as file:
     config = yaml.safe_load(file)
 
 if not API_KEY:
-    print("❌ ERROR: EI_API_KEY environment variable is missing!")
+    print("ERROR: EI_API_KEY environment variable is missing!")
     exit(1)
 
 HEADERS = {
@@ -20,46 +20,46 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# --- THE FIX: DYNAMICALLY FETCH THE PROJECT ID ---
+# DYNAMICALLY FETCH THE PROJECT ID FROM THE API KEY
 print("🔍 Fetching Project ID from API Key...")
 proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
 if proj_res.status_code != 200:
-    print(f"❌ Failed to fetch projects. RAW ERROR: {proj_res.text}")
+    print(f"Failed to fetch projects. RAW ERROR: {proj_res.text}")
     exit(1)
 
 proj_data = proj_res.json()
 if not proj_data.get('success') or not proj_data.get('projects'):
-    print(f"❌ Authentication Failed or no projects found: {proj_data}")
+    print(f"Authentication Failed or no projects found: {proj_data}")
     exit(1)
     
 PROJECT_ID = proj_data['projects'][0]['id']
 BASE_URL = f"https://studio.edgeimpulse.com/v1/api/{PROJECT_ID}"
-print(f"✅ Successfully attached to Project ID: {PROJECT_ID}")
+print(f"Successfully attached to Project ID: {PROJECT_ID}")
 
 
 def start_testing():
-    print("🚀 Triggering Model Testing Job (Classify All Unseen Data)...")
+    print("Triggering Model Testing Job (Classify All Unseen Data)...")
     res = requests.post(f"{BASE_URL}/jobs/evaluate", headers=HEADERS)
     
     if res.status_code != 200:
-        print(f"❌ Failed to start testing pipeline: {res.text}")
+        print(f"Failed to start testing pipeline: {res.text}")
         exit(1)
         
     data = res.json()
     if not data.get("success"):
-        print(f"❌ API Error: {data.get('error')}")
+        print(f"API Error: {data.get('error')}")
         exit(1)
         
     job_id = data["id"]
-    print(f"✅ Cloud Testing Job started! (Job ID: {job_id})")
+    print(f"Cloud Testing Job started! (Job ID: {job_id})")
     return job_id
 
 def wait_for_job(job_id, max_retries=25, sleep_time=20):
-    print(f"⏳ Waiting for testing job to finish. Polling every {sleep_time} seconds...")
+    print(f"Waiting for testing job to finish. Polling every {sleep_time} seconds...")
     status_url = f"{BASE_URL}/jobs/{job_id}/status"
     
     for attempt in range(max_retries):
-        print(f"🔄 Check {attempt + 1}/{max_retries}: Querying testing status...")
+        print(f"Check {attempt + 1}/{max_retries}: Querying testing status...")
         res = requests.get(status_url, headers=HEADERS)
         
         if res.status_code == 200:
@@ -69,15 +69,15 @@ def wait_for_job(job_id, max_retries=25, sleep_time=20):
                     print("✅ Cloud Testing Job completed successfully!")
                     return
                 else:
-                    print("❌ Cloud Testing Job failed. Check EI Dashboard for logs.")
+                    print("Cloud Testing Job failed. Check EI Dashboard for logs.")
                     exit(1)
             else:
                 time.sleep(sleep_time)
         else:
-            print(f"❌ Failed to check job status: {res.text}")
+            print(f"Failed to check job status: {res.text}")
             exit(1)
             
-    print("❌ Testing timed out.")
+    print("Testing timed out.")
     exit(1)
 
 def get_learn_id():
@@ -87,7 +87,7 @@ def get_learn_id():
 
 def print_final_report():
     print("\n" + "="*50)
-    print(" 📊 FINAL CI/CD MODEL EVALUATION REPORT ")
+    print(" FINAL CI/CD MODEL EVALUATION REPORT ")
     print("="*50)
     
     test_res = requests.get(f"{BASE_URL}/classify/all/result", headers=HEADERS)
@@ -101,7 +101,7 @@ def print_final_report():
             correct = 0
             total = len(results_list)
             
-            # --- Gather Labels ---
+            # Gather Labels 
             labels_set = set()
             for item in results_list:
                 true_label = item.get("sample", {}).get("label")
@@ -121,7 +121,7 @@ def print_final_report():
             # Initialize empty confusion matrix grid
             cm = {t_label: {p_label: 0 for p_label in labels} for t_label in labels}
             
-            # --- Calculate Accuracy ---
+            # Calculate Accuracy 
             for item in results_list:
                 expected = item.get("sample", {}).get("label")
                 
@@ -143,9 +143,9 @@ def print_final_report():
                                 
             # Final Math
             test_acc = (correct / total) * 100
-            print(f"🎯 TEST ACCURACY (Unseen Data): {test_acc:.2f}%\n")
+            print(f"TEST ACCURACY (Unseen Data): {test_acc:.2f}%\n")
             
-            print("🧮 Test Data Confusion Matrix:")
+            print("Test Data Confusion Matrix:")
             header = f"{'':>10} | " + " | ".join([f"{l:>8}" for l in labels])
             print(header)
             print("-" * len(header))
@@ -159,7 +159,7 @@ def print_final_report():
 
     print("-" * 50)
 
-    # --- FETCH HARDWARE METRICS ---
+    # FETCH HARDWARE METRICS 
     learn_id = get_learn_id()
     if learn_id:
         hw_res = requests.get(f"{BASE_URL}/training/keras/{learn_id}/metadata", headers=HEADERS)
@@ -183,23 +183,34 @@ def print_final_report():
             rom = eon_profile.get('rom', 0)
             
             if latency == 0 and ram == 0:
-                print("⚠️ Hardware profile unavailable (dataset may be too small).")
+                print("Hardware profile unavailable (dataset may be too small).")
             else:
-                print(f"⚡ Latency / Inference Time: {latency} ms")
-                print(f"🧠 Peak RAM Used:           {ram} bytes")
-                print(f"💾 Flash / ROM Used:        {rom} bytes")
+                print(f"Latency / Inference Time: {latency} ms")
+                print(f"Peak RAM Used:           {ram} bytes")
+                print(f"Flash / ROM Used:        {rom} bytes")
+                if latency > 20:
+                    print(f"⚠️ Latency exceeds threshold of 20 ms!")
+                    exit(1)
+                if ram > 20:
+                    print(f"⚠️ RAM usage exceeds threshold of 20 bytes!")
+                    exit(1)
+                if rom > 120:
+                    print(f"⚠️ ROM usage exceeds threshold of 120 bytes!")
+                    exit(1)
+                else:
+                    print("Hardware metrics are within acceptable thresholds.")
 
     # Fail Closed Logic
     if test_acc is None:
-        print("\n❌ CI/CD GATE FAILED: Test Accuracy could not be calculated.")
-        print("❌ Halting pipeline. Deployment will NOT proceed.")
+        print("\n CI/CD GATE FAILED: Test Accuracy could not be calculated.")
+        print("Halting pipeline. Deployment will NOT proceed.")
         exit(1)
     elif test_acc < 80.0:
-        print(f"\n❌ CI/CD GATE FAILED: Test Accuracy ({test_acc:.2f}%) is below 80%.")
-        print("❌ Halting pipeline. Deployment will NOT proceed.")
+        print(f"\n CI/CD GATE FAILED: Test Accuracy ({test_acc:.2f}%) is below 80%.")
+        print("Halting pipeline. Deployment will NOT proceed.")
         exit(1)
     else:
-        print("\n✅ CI/CD GATE PASSED: Model is healthy and ready for deployment.")
+        print("\n CI/CD GATE PASSED: Model is healthy and ready for deployment.")
     print("="*50 + "\n")
 
 if __name__ == "__main__":

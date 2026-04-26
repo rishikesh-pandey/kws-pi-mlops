@@ -15,18 +15,18 @@ def clear_project_data(project_id):
             for sample in data['samples']:
                 sample_id = sample['id']
                 requests.delete(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data/{sample_id}", headers=HEADERS)
-    print("✅ Project data cleared.")
+    print("Project data cleared.")
 
 def upload_all_data():
     if not API_KEY:
-        print("❌ ERROR: EI_API_KEY is missing! Check your GitHub Secrets.")
+        print("ERROR: EI_API_KEY is missing! Check your GitHub Secrets.")
         exit(1)
 
     # 1. Get Project ID
     proj_res = requests.get("https://studio.edgeimpulse.com/v1/api/projects", headers=HEADERS)
     proj_data = proj_res.json()
     if not proj_data.get('success'):
-        print(f"❌ Authentication Failed: {proj_data.get('error')}")
+        print(f"Authentication Failed: {proj_data.get('error')}")
         exit(1)
         
     project_id = proj_data['projects'][0]['id']
@@ -35,7 +35,7 @@ def upload_all_data():
     clear_project_data(project_id)
 
     # 3. Upload the exact dataset from scratch
-    print("🚀 Uploading fresh dataset...")
+    print("Uploading fresh dataset...")
     local_paths = glob.glob("data/raw_data/**/*.wav", recursive=True)
     
     for local_path in local_paths:
@@ -48,7 +48,6 @@ def upload_all_data():
                 "x-label": label
             }
             
-            # THE FIX: Changed /training/files to /split/files
             res = requests.post(
                 "https://ingestion.edgeimpulse.com/api/split/files", 
                 headers=upload_headers, 
@@ -56,11 +55,12 @@ def upload_all_data():
             )
             
             if res.status_code == 200:
-                print(f"✅ Uploaded: {filename} | Label: '{label}' | Category: split")
+                # print(f"Uploaded: {filename} | Label: '{label}' | Category: split")
+                pass
             else:
-                print(f"⚠️ Failed to upload {filename}: {res.text}")
+                print(f"Failed to upload {filename}: {res.text}")
 
-    print("🎉 Ingestion Complete!")
+    print("Ingestion Complete!")
 
 if __name__ == "__main__":
     upload_all_data()
