@@ -6,7 +6,7 @@ API_KEY = os.environ.get("EI_API_KEY")
 HEADERS = {"x-api-key": API_KEY, "Accept": "application/json"}
 
 def clear_project_data(project_id):
-    print("🧹 Clearing all existing data from Edge Impulse...")
+    print("Clearing all existing data from Edge Impulse...")
     for category in ['training', 'testing']:
         res = requests.get(f"https://studio.edgeimpulse.com/v1/api/{project_id}/raw-data?category={category}", headers=HEADERS)
         data = res.json()
