@@ -10,7 +10,6 @@ int raw_feature_get_data(size_t offset, size_t length, float *out_ptr) {
     memcpy(out_ptr, features + offset, length * sizeof(float));
     return 0;
 }
-
 // --------------------------------------------------------
 // OTA UPDATE STUBS (To be filled in later)
 // --------------------------------------------------------
